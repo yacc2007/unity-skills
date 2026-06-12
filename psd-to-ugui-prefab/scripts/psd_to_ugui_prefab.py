@@ -21,6 +21,8 @@ DEFAULT_TRANSLATIONS = {
     "信号电池": "signal_battery",
     "电量+信号": "battery_signal",
     "普通房": "normal_room",
+    "房间内": "room_interior",
+    "房间內": "room_interior",
     "房间ID": "room_id",
     "参考图片": "reference_image",
     "渲染风格": "render_style",
@@ -57,6 +59,8 @@ DEFAULT_TRANSLATIONS = {
     "电量": "battery_level",
     "电池": "battery",
     "房间": "room",
+    "内": "interior",
+    "內": "interior",
     "对局": "round",
     "對局": "round",
     "矩形": "rectangle",
@@ -126,21 +130,6 @@ def stable_guid(*parts: object) -> str:
     return hashlib.sha1(seed.encode("utf-8")).hexdigest()[:32]
 
 
-def pascal_case(value: str, fallback: str = "Node") -> str:
-    words = re.findall(r"[A-Za-z0-9]+", value)
-    if not words:
-        words = [fallback]
-    result = "".join(word[:1].upper() + word[1:] for word in words)
-    if result[:1].isdigit():
-        result = fallback + result
-    return result
-
-
-def camel_case(value: str, fallback: str = "node") -> str:
-    pascal = pascal_case(value, fallback=fallback[:1].upper() + fallback[1:])
-    return pascal[:1].lower() + pascal[1:]
-
-
 def safe_asset_name(value: str, fallback: str = "Layer") -> str:
     name = re.sub(r"[^A-Za-z0-9_.-]+", "_", value).strip("._-")
     return name or fallback
@@ -149,6 +138,12 @@ def safe_asset_name(value: str, fallback: str = "Layer") -> str:
 def unity_object_name(value: str, fallback: str = "Layer") -> str:
     name = value.replace("\x00", "").strip()
     return name or fallback
+
+
+def screen_asset_name(value: str, translations: dict[str, str] | None = None, fallback: str = "Screen") -> str:
+    if re.search(r"[A-Za-z]", value):
+        return safe_asset_name(value, fallback=fallback)
+    return safe_asset_name(code_binding_name(value, translations, fallback=fallback.lower()), fallback=fallback)
 
 
 def code_binding_name(value: str, translations: dict[str, str] | None = None, fallback: str = "node") -> str:
@@ -530,21 +525,6 @@ PrefabImporter:
 """
 
 
-def mono_script_meta(guid: str) -> str:
-    return f"""fileFormatVersion: 2
-guid: {guid}
-MonoImporter:
-  externalObjects: {{}}
-  serializedVersion: 2
-  defaultReferences: []
-  executionOrder: 0
-  icon: {{instanceID: 0}}
-  userData:
-  assetBundleName:
-  assetBundleVariant:
-"""
-
-
 def component_lines(component_ids: list[int]) -> str:
     return "\n".join(f"  - component: {{fileID: {component_id}}}" for component_id in component_ids)
 
@@ -839,350 +819,6 @@ def generate_bindings(name: str, canvas_width: int, canvas_height: int, layers: 
     }
 
 
-def generate_controller(name: str, class_name: str, layers: list[LayerAsset]) -> str:
-    keys = ["root"] + [layer.property_name for layer in layers]
-    key_union = " | ".join(q(key) for key in keys)
-    refs_lines = ["  root: UguiNode;"] + [f"  {layer.property_name}?: UguiNode;" for layer in layers]
-    button_layers = [layer for layer in layers if layer.role == "button"]
-
-    wire_lines = []
-    for layer in button_layers:
-        method = "on" + pascal_case(layer.property_name) + "Click"
-        wire_lines.append(f'    this.tryBindClick("{layer.property_name}", bindClick, () => this.{method}());')
-    if not wire_lines:
-        wire_lines.append("    void bindClick;")
-
-    handler_lines = []
-    for layer in button_layers:
-        method = "on" + pascal_case(layer.property_name) + "Click"
-        handler_lines.append(
-            f"""  protected {method}(): void {{
-    // Override or replace this handler in project code.
-  }}
-"""
-        )
-
-    screen_type = pascal_case(name)
-
-    return f"""export type UguiNode = {{
-  activeSelf?: boolean;
-  gameObject?: UguiNode;
-  SetActive?: (active: boolean) => void;
-  setActive?: (active: boolean) => void;
-  text?: string;
-}};
-
-export type {screen_type}NodeKey = {key_union};
-
-export interface {screen_type}RuntimeBridge {{
-  Show?: () => void;
-  Hide?: () => void;
-  SetRootActive?: (active: boolean) => void;
-  SetNodeActive?: (key: {screen_type}NodeKey, active: boolean) => void;
-  SetText?: (key: {screen_type}NodeKey, value: string) => void;
-  BindClick?: (key: {screen_type}NodeKey, handler: () => void) => void;
-  show?: () => void;
-  hide?: () => void;
-  setRootActive?: (active: boolean) => void;
-  setNodeActive?: (key: {screen_type}NodeKey, active: boolean) => void;
-  setText?: (key: {screen_type}NodeKey, value: string) => void;
-  bindClick?: (key: {screen_type}NodeKey, handler: () => void) => void;
-}}
-
-export interface {screen_type}Refs {{
-{chr(10).join(refs_lines)}
-}}
-
-export class {class_name} {{
-  public constructor(
-    private readonly refs: {screen_type}Refs,
-    private runtime?: {screen_type}RuntimeBridge,
-  ) {{}}
-
-  public get allRefs(): {screen_type}Refs {{
-    return this.refs;
-  }}
-
-  public attachRuntime(runtime: {screen_type}RuntimeBridge): this {{
-    this.runtime = runtime;
-    return this;
-  }}
-
-  public getNode(key: {screen_type}NodeKey): UguiNode | undefined {{
-    return this.refs[key as keyof {screen_type}Refs];
-  }}
-
-  public show(): void {{
-    if (this.runtime?.Show) {{
-      this.runtime.Show();
-      return;
-    }}
-    if (this.runtime?.show) {{
-      this.runtime.show();
-      return;
-    }}
-    if (this.runtime?.SetRootActive) {{
-      this.runtime.SetRootActive(true);
-      return;
-    }}
-    if (this.runtime?.setRootActive) {{
-      this.runtime.setRootActive(true);
-      return;
-    }}
-    this.setNodeActive(this.refs.root, true);
-  }}
-
-  public hide(): void {{
-    if (this.runtime?.Hide) {{
-      this.runtime.Hide();
-      return;
-    }}
-    if (this.runtime?.hide) {{
-      this.runtime.hide();
-      return;
-    }}
-    if (this.runtime?.SetRootActive) {{
-      this.runtime.SetRootActive(false);
-      return;
-    }}
-    if (this.runtime?.setRootActive) {{
-      this.runtime.setRootActive(false);
-      return;
-    }}
-    this.setNodeActive(this.refs.root, false);
-  }}
-
-  public setActive(key: {screen_type}NodeKey, active: boolean): void {{
-    if (key === "root") {{
-      if (active) {{
-        this.show();
-      }} else {{
-        this.hide();
-      }}
-      return;
-    }}
-    if (this.runtime?.SetNodeActive) {{
-      this.runtime.SetNodeActive(key, active);
-      return;
-    }}
-    if (this.runtime?.setNodeActive) {{
-      this.runtime.setNodeActive(key, active);
-      return;
-    }}
-    this.setNodeActive(this.getNode(key), active);
-  }}
-
-  public setText(key: {screen_type}NodeKey, value: string): void {{
-    if (this.runtime?.SetText) {{
-      this.runtime.SetText(key, value);
-    }} else if (this.runtime?.setText) {{
-      this.runtime.setText(key, value);
-    }}
-    const node = this.getNode(key);
-    if (node) {{
-      node.text = value;
-    }}
-  }}
-
-  public wireEvents(bindClick?: (node: UguiNode, handler: () => void) => void): void {{
-{chr(10).join(wire_lines)}
-  }}
-
-  private tryBindClick(
-    key: {screen_type}NodeKey,
-    bindClick: ((node: UguiNode, handler: () => void) => void) | undefined,
-    handler: () => void,
-  ): void {{
-    if (this.runtime?.BindClick) {{
-      this.runtime.BindClick(key, handler);
-      return;
-    }}
-    if (this.runtime?.bindClick) {{
-      this.runtime.bindClick(key, handler);
-      return;
-    }}
-    const node = this.getNode(key);
-    if (node && bindClick) {{
-      bindClick(node, handler);
-    }}
-  }}
-
-  private setNodeActive(node: UguiNode | undefined, active: boolean): void {{
-    const target = node?.gameObject ?? node;
-    if (!target) {{
-      return;
-    }}
-    if (typeof target.SetActive === "function") {{
-      target.SetActive(active);
-    }} else if (typeof target.setActive === "function") {{
-      target.setActive(active);
-    }} else {{
-      target.activeSelf = active;
-    }}
-  }}
-
-{chr(10).join(handler_lines)}}}
-"""
-
-
-def generate_csharp_view(class_name: str) -> str:
-    return f"""using System;
-using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.UI;
-
-public sealed class {class_name} : MonoBehaviour
-{{
-    [Serializable]
-    public sealed class Binding
-    {{
-        public string key;
-        public GameObject node;
-        public RectTransform rectTransform;
-        public Image image;
-        public Button button;
-    }}
-
-    [SerializeField] private GameObject root;
-    [SerializeField] private Binding[] bindings = Array.Empty<Binding>();
-
-    private Dictionary<string, Binding> bindingMap;
-
-    public GameObject Root => root != null ? root : gameObject;
-    public IReadOnlyList<Binding> Bindings => bindings;
-
-    private void Awake()
-    {{
-        EnsureBindingMap();
-    }}
-
-    private void OnValidate()
-    {{
-        if (root == null)
-        {{
-            root = gameObject;
-        }}
-    }}
-
-    public Binding FindBinding(string key)
-    {{
-        EnsureBindingMap();
-        return key != null && bindingMap.TryGetValue(key, out var binding) ? binding : null;
-    }}
-
-    public GameObject GetNode(string key)
-    {{
-        return FindBinding(key)?.node;
-    }}
-
-    public RectTransform GetRectTransform(string key)
-    {{
-        return FindBinding(key)?.rectTransform;
-    }}
-
-    public Image GetImage(string key)
-    {{
-        return FindBinding(key)?.image;
-    }}
-
-    public Button GetButton(string key)
-    {{
-        return FindBinding(key)?.button;
-    }}
-
-    public void Show()
-    {{
-        SetRootActive(true);
-    }}
-
-    public void Hide()
-    {{
-        SetRootActive(false);
-    }}
-
-    public void SetRootActive(bool active)
-    {{
-        Root.SetActive(active);
-    }}
-
-    public void SetNodeActive(string key, bool active)
-    {{
-        var node = GetNode(key);
-        if (node != null)
-        {{
-            node.SetActive(active);
-        }}
-    }}
-
-    public void SetText(string key, string value)
-    {{
-        var node = GetNode(key);
-        if (node == null)
-        {{
-            return;
-        }}
-
-        var text = node.GetComponent<Text>();
-        if (text != null)
-        {{
-            text.text = value;
-        }}
-    }}
-
-    public void SetImageColor(string key, Color color)
-    {{
-        var image = GetImage(key);
-        if (image != null)
-        {{
-            image.color = color;
-        }}
-    }}
-
-    public void BindClick(string key, Action handler)
-    {{
-        if (handler == null)
-        {{
-            return;
-        }}
-
-        var button = GetButton(key);
-        if (button != null)
-        {{
-            button.onClick.AddListener(() => handler());
-        }}
-    }}
-
-    public void ClearClickListeners(string key)
-    {{
-        var button = GetButton(key);
-        if (button != null)
-        {{
-            button.onClick.RemoveAllListeners();
-        }}
-    }}
-
-    private void EnsureBindingMap()
-    {{
-        if (bindingMap != null)
-        {{
-            return;
-        }}
-
-        bindingMap = new Dictionary<string, Binding>(StringComparer.Ordinal);
-        foreach (var binding in bindings)
-        {{
-            if (binding == null || string.IsNullOrEmpty(binding.key))
-            {{
-                continue;
-            }}
-
-            bindingMap[binding.key] = binding;
-        }}
-    }}
-}}
-"""
-
-
 def write_outputs(
     name: str,
     out_dir: Path,
@@ -1226,14 +862,14 @@ def main(argv: list[str]) -> int:
     if psd_path and not psd_path.exists():
         raise SystemExit(f"PSD not found: {psd_path}")
 
-    name = safe_asset_name(args.name or (psd_path.stem if psd_path else "DemoScreen"), fallback="Screen")
+    translations = load_translation_map(args.translation_map)
+    name = screen_asset_name(args.name or (psd_path.stem if psd_path else "DemoScreen"), translations, fallback="Screen")
     out_dir = Path(args.out).expanduser().resolve()
     sprites_dir = out_dir / args.sprites_folder
     out_dir.mkdir(parents=True, exist_ok=True)
     sprites_dir.mkdir(parents=True, exist_ok=True)
     if args.clean_sprites:
         clean_sprite_outputs(sprites_dir)
-    translations = load_translation_map(args.translation_map)
 
     if args.demo:
         canvas_width, canvas_height, layers = demo_layers(name, sprites_dir, translations)
