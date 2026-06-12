@@ -45,11 +45,11 @@ python3 -m pip install psd-tools pillow
 The converter infers visual/control roles from layer names:
 
 - `btn_*`, `button_*`, or names containing ` button` become UGUI `Button` nodes.
-- Chinese `按钮` / `按鈕` and common action names such as `play`, `pass`, `hint`, `menu`, `chat`, and `emoji` are also treated as buttons.
+- Chinese `按钮` / `按鈕` and common action names such as `play`, `start`, `submit`, `confirm`, `cancel`, `close`, `menu`, `chat`, and `search` are also treated as buttons.
 - `txt_*`, `text_*`, `label_*`, or `title_*` are tagged as text bindings in the manifest, but remain rasterized images by default for visual fidelity.
 - Other visible leaf layers become UGUI `Image` nodes.
 
-Groups are traversed into visible leaf layers by default. Groups with direct clipping-mask layers are exported as one composited sprite to preserve masks, and known avatar-style groups are also composited so circular portrait masks stay intact. Hidden layers are skipped unless `--include-hidden` is passed. PSD layer order is preserved as Unity sibling order: earlier children render behind later children.
+Groups are traversed into visible leaf layers by default. Groups with direct clipping-mask layers are exported as one composited sprite to preserve masks. Hidden layers are skipped unless `--include-hidden` is passed. PSD layer order is preserved as Unity sibling order: earlier children render behind later children.
 
 Generated Unity GameObject names use the same English `snake_case` names as code bindings. The binding manifest stores `sourceLayer` for the PSD path and `psdName` for the exact original PSD layer/group name.
 

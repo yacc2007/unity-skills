@@ -38,7 +38,7 @@ The binding manifest must contain:
 
 The generated C# bridge resolves nodes by direct child index under the prefab root, using the same order stored in `nodes[]`. This keeps code generation independent from prefab YAML patching.
 
-Generated C# methods use `nodes[].property` directly. Button handlers are named `on_<property>_click`, so a PSD path translated to `table_button_1_pass` becomes `on_table_button_1_pass_click`.
+Generated C# methods use `nodes[].property` directly. Button handlers are named `on_<property>_click`, so a PSD path translated to `primary_button` becomes `on_primary_button_click`.
 
 ## Generated Files
 
@@ -52,7 +52,7 @@ Attach `<Name>View` and `<Name>Controller` to the generated prefab root or to a 
 
 ## Controller Naming
 
-Generated C# fields and button handler methods use the manifest's English `snake_case` keys. For example, `table_button_1_pass` becomes `on_table_button_1_pass_click`.
+Generated C# fields and button handler methods use the manifest's English `snake_case` keys. For example, `primary_button` becomes `on_primary_button_click`.
 
 ## Validation
 

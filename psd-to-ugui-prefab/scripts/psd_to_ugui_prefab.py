@@ -18,61 +18,55 @@ BUTTON_SCRIPT_GUID = "4e29b1a8efbd4b44bb3f3716e73f07ff"
 
 DEFAULT_TRANSLATIONS = {
     "通用UI": "common_ui",
-    "信号电池": "signal_battery",
-    "电量+信号": "battery_signal",
-    "普通房": "normal_room",
-    "房间内": "room_interior",
-    "房间內": "room_interior",
-    "房间ID": "room_id",
-    "参考图片": "reference_image",
-    "渲染风格": "render_style",
-    "高饱和度": "high_saturation",
-    "整体光源": "overall_light",
-    "整体构图": "overall_composition",
-    "改成": "change_to",
-    "将图片": "image",
-    "傍晚": "evening",
-    "沙滩": "beach",
-    "卡通": "cartoon",
-    "保持": "keep",
-    "不变": "unchanged",
-    "精致": "refined",
-    "细节": "details",
-    "光源": "light",
     "背景": "background",
     "图层": "layer",
-    "桌面": "table",
-    "头像": "avatar",
-    "玩家": "player",
-    "自己": "self",
-    "倒计时": "countdown",
-    "剩牌数": "remaining_cards",
-    "牌背": "card_back",
     "按钮": "button",
     "按鈕": "button",
+    "文本": "text",
+    "文字": "text",
+    "标题": "title",
+    "標題": "title",
+    "图片": "image",
+    "圖像": "image",
+    "图像": "image",
+    "面板": "panel",
+    "弹窗": "popup",
+    "彈窗": "popup",
+    "头像": "avatar",
+    "用户": "user",
+    "用戶": "user",
+    "倒计时": "countdown",
     "椭圆": "ellipse",
     "橢圓": "ellipse",
+    "矩形": "rectangle",
+    "形状": "shape",
+    "形狀": "shape",
     "时钟": "clock",
     "時鐘": "clock",
     "信号": "signal",
     "電量": "battery_level",
     "电量": "battery_level",
     "电池": "battery",
-    "房间": "room",
-    "内": "interior",
-    "內": "interior",
-    "对局": "round",
-    "對局": "round",
-    "矩形": "rectangle",
-    "形状": "shape",
-    "形狀": "shape",
     "聊天": "chat",
     "表情": "emoji",
     "语音": "voice",
     "語音": "voice",
     "菜单": "menu",
     "菜單": "menu",
+    "关闭": "close",
+    "關閉": "close",
+    "返回": "back",
+    "确认": "confirm",
+    "確認": "confirm",
+    "取消": "cancel",
+    "确定": "ok",
+    "確定": "ok",
+    "搜索": "search",
+    "输入": "input",
+    "輸入": "input",
+    "列表": "list",
     "拷贝": "copy",
+    "副本": "copy",
     "組": "group",
     "组": "group",
     "底": "base",
@@ -80,10 +74,14 @@ DEFAULT_TRANSLATIONS = {
     "綠": "green",
     "红": "red",
     "紅": "red",
-    "右": "right",
+    "蓝": "blue",
+    "藍": "blue",
+    "黄": "yellow",
+    "黃": "yellow",
     "左": "left",
-    "为": "as",
-    "正": "front",
+    "右": "right",
+    "上": "top",
+    "下": "bottom",
 }
 
 
@@ -202,7 +200,7 @@ def infer_role(name: str) -> str:
     normalized = re.sub(r"[^a-z0-9]+", "_", lower_name).strip("_")
     tokens = set(normalized.split("_"))
     button_markers = ("按钮", "按鈕", "button")
-    button_words = {"btn", "button", "play", "pass", "hint", "menu", "chat", "emoji"}
+    button_words = {"btn", "button", "play", "start", "submit", "confirm", "cancel", "close", "ok", "menu", "chat", "emoji", "search", "back", "next"}
     if (
         normalized.startswith(("btn_", "button_"))
         or any(marker in lower_name for marker in button_markers)
@@ -231,13 +229,6 @@ def group_has_direct_clipping(layer: object, include_hidden: bool) -> bool:
             return True
     return False
 
-
-def is_named_composite_group(path: str) -> bool:
-    parts = [part.strip() for part in path.split("/") if part.strip()]
-    if "头像" not in parts or not parts:
-        return False
-    avatar_group_names = {"玩家-右", "玩家-右 拷贝", "左", "自己", "倒计时"}
-    return parts[-1] in avatar_group_names
 
 
 def yn(value: bool) -> int:
@@ -313,7 +304,7 @@ def export_psd_layers(
                 continue
             psd_layer_path = "/".join(groups + [name])
             if layer.is_group():
-                if is_named_composite_group(psd_layer_path) or group_has_direct_clipping(layer, include_hidden):
+                if group_has_direct_clipping(layer, include_hidden):
                     bbox = tuple(int(v) for v in layer.bbox)
                     left, top, right, bottom = bbox
                     if right <= left or bottom <= top:
